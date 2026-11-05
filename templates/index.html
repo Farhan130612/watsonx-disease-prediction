@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HealthRisk Predictor | College ML Project</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="brand">
+                <span class="brand-icon">🩺</span>
+                <div>
+                    <h1 class="brand-title">HealthRisk AI</h1>
+                    <span class="brand-sub">College ML Project &bull; IBM watsonx.ai</span>
+                </div>
+            </div>
+            <div class="nav-actions">
+                <span class="status-pill">
+                    <span class="status-dot"></span>
+                    <span id="activeEngineText">Model: Active (Offline)</span>
+                </span>
+                <button class="btn-config" id="openSettingsBtn">⚙️ Cloud Settings</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Page Intro / Hero -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <h2>Disease Risk Prediction System</h2>
+            <p>Predict risk levels for <strong>Type-2 Diabetes</strong> and <strong>Heart Disease</strong> using Machine Learning models trained with IBM watsonx.ai Studio.</p>
+        </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <div class="tab-wrapper">
+        <nav class="tab-bar">
+            <button class="tab-btn active" data-tab="tab-diabetes">
+                <span>🩸</span> Diabetes Check
+            </button>
+            <button class="tab-btn" data-tab="tab-heart">
+                <span>❤️</span> Heart Disease Check
+            </button>
+            <button class="tab-btn" data-tab="tab-metrics">
+                <span>📊</span> Model Accuracy & Stats
+            </button>
+            <button class="tab-btn" data-tab="tab-guide">
+                <span>💡</span> Project & Viva Guide
+            </button>
+        </nav>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="main-container">
+
+        <!-- ================= TAB 1: DIABETES PREDICTION ================= -->
+        <section id="tab-diabetes" class="tab-content active">
+            <div class="layout-grid">
+                
+                <!-- Left: Form -->
+                <div class="card">
+                    <div class="card-head">
+                        <div>
+                            <h3>Patient Details</h3>
+                            <p class="card-desc">Enter health readings or use a sample patient</p>
+                        </div>
+                        <div class="presets-row">
+                            <span class="presets-title">Sample Profiles:</span>
+                            <div class="preset-btns">
+                                <button type="button" class="preset-pill pill-green" onclick="loadDiabetesPreset('low_risk')">Healthy</button>
+                                <button type="button" class="preset-pill pill-yellow" onclick="loadDiabetesPreset('borderline_risk')">Medium Risk</button>
+                                <button type="button" class="preset-pill pill-red" onclick="loadDiabetesPreset('high_risk')">High Risk</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="diabetesForm" onsubmit="handleDiabetesPredict(event)">
+                        <div class="inputs-grid">
+                            <div class="field">
+                                <label for="diab_glucose">Fasting Blood Sugar (mg/dL)</label>
+                                <input type="number" id="diab_glucose" name="glucose" min="40" max="300" step="1" value="115" required>
+                                <span class="hint">Normal fasting is 70 to 99 mg/dL</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="diab_bmi">Body Mass Index (BMI)</label>
+                                <input type="number" id="diab_bmi" name="bmi" min="10" max="65" step="0.1" value="26.4" required>
+                                <span class="hint">Normal BMI is 18.5 to 24.9</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="diab_bp">Blood Pressure (mm Hg)</label>
+                                <input type="number" id="diab_bp" name="blood_pressure" min="40" max="180" step="1" value="76" required>
+                                <span class="hint">Resting diastolic pressure (normal: &lt; 80)</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="diab_age">Age (Years)</label>
+                                <input type="number" id="diab_age" name="age" min="15" max="100" step="1" value="38" required>
+                                <span class="hint">Patient age in years</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="diab_insulin">Insulin Level (μU/mL)</label>
+                                <input type="number" id="diab_insulin" name="insulin" min="0" max="800" step="1" value="95">
+                                <span class="hint">Normal 2-hour fasting insulin: 16–166</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="diab_dpf">Family History Score (DPF)</label>
+                                <input type="number" id="diab_dpf" name="dpf" min="0.05" max="2.5" step="0.01" value="0.42">
+                                <span class="hint">Heredity score (typical: 0.2 to 0.8)</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="diab_pregnancies">Number of Pregnancies</label>
+                                <input type="number" id="diab_pregnancies" name="pregnancies" min="0" max="20" step="1" value="1">
+                                <span class="hint">0 if not applicable</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="diab_skin">Skin Thickness (mm)</label>
+                                <input type="number" id="diab_skin" name="skin_thickness" min="0" max="99" step="1" value="23">
+                                <span class="hint">Triceps fold measure (optional, default: 23)</span>
+                            </div>
+                        </div>
+
+                        <div class="form-btn-row">
+                            <button type="submit" class="btn btn-main" id="btnDiabPredict">Check Diabetes Risk</button>
+                            <button type="button" class="btn btn-sub" onclick="resetDiabetesForm()">Clear</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Right: Result -->
+                <div class="card result-box" id="diabetesResultCard">
+                    <div class="card-head">
+                        <h3>Prediction Result</h3>
+                        <span class="badge" id="diabBadge">Ready</span>
+                    </div>
+
+                    <div class="result-content" id="diabResultBody">
+                        <div class="placeholder-state">
+                            <div class="placeholder-icon">📋</div>
+                            <h4>No Prediction Yet</h4>
+                            <p>Fill in the numbers on the left or click one of the <strong>Sample Profiles</strong> to check the risk.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: HEART DISEASE PREDICTION ================= -->
+        <section id="tab-heart" class="tab-content">
+            <div class="layout-grid">
+                
+                <!-- Left: Form -->
+                <div class="card">
+                    <div class="card-head">
+                        <div>
+                            <h3>Patient Details</h3>
+                            <p class="card-desc">Enter heart health readings or pick a sample</p>
+                        </div>
+                        <div class="presets-row">
+                            <span class="presets-title">Sample Profiles:</span>
+                            <div class="preset-btns">
+                                <button type="button" class="preset-pill pill-green" onclick="loadHeartPreset('low_risk')">Healthy</button>
+                                <button type="button" class="preset-pill pill-yellow" onclick="loadHeartPreset('borderline_risk')">Medium Risk</button>
+                                <button type="button" class="preset-pill pill-red" onclick="loadHeartPreset('high_risk')">High Risk</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="heartForm" onsubmit="handleHeartPredict(event)">
+                        <div class="inputs-grid">
+                            <div class="field">
+                                <label for="heart_age">Age (Years)</label>
+                                <input type="number" id="heart_age" name="age" min="20" max="90" step="1" value="48" required>
+                                <span class="hint">Patient age in years</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_sex">Sex</label>
+                                <select id="heart_sex" name="sex" required>
+                                    <option value="1" selected>Male</option>
+                                    <option value="0">Female</option>
+                                </select>
+                                <span class="hint">Biological sex</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_cp">Chest Pain Type</label>
+                                <select id="heart_cp" name="cp" required>
+                                    <option value="0">0: Typical Angina (Chest tightness)</option>
+                                    <option value="1">1: Atypical Angina</option>
+                                    <option value="2" selected>2: Non-Heart Pain</option>
+                                    <option value="3">3: No Pain (Asymptomatic)</option>
+                                </select>
+                                <span class="hint">Type of pain felt</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_trestbps">Resting Blood Pressure (mm Hg)</label>
+                                <input type="number" id="heart_trestbps" name="trestbps" min="80" max="220" step="1" value="126" required>
+                                <span class="hint">Normal is under 120 mm Hg</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_chol">Cholesterol Level (mg/dL)</label>
+                                <input type="number" id="heart_chol" name="chol" min="100" max="550" step="1" value="215" required>
+                                <span class="hint">Desirable is under 200 mg/dL</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_fbs">Fasting Blood Sugar &gt; 120 mg/dL</label>
+                                <select id="heart_fbs" name="fbs">
+                                    <option value="0" selected>No (Normal &lt; 120)</option>
+                                    <option value="1">Yes (Elevated &gt; 120)</option>
+                                </select>
+                                <span class="hint">Fasting sugar check</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_restecg">Resting ECG Result</label>
+                                <select id="heart_restecg" name="restecg">
+                                    <option value="0" selected>0: Normal</option>
+                                    <option value="1">1: Slight ST-T Abnormality</option>
+                                    <option value="2">2: Left Ventricular Hypertrophy</option>
+                                </select>
+                                <span class="hint">Resting ECG reading</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_thalach">Maximum Heart Rate (bpm)</label>
+                                <input type="number" id="heart_thalach" name="thalach" min="60" max="220" step="1" value="155" required>
+                                <span class="hint">Highest heart rate during exercise</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_exang">Chest Pain During Exercise?</label>
+                                <select id="heart_exang" name="exang">
+                                    <option value="0" selected>No (0)</option>
+                                    <option value="1">Yes (1 — Angina)</option>
+                                </select>
+                                <span class="hint">Pain during physical exercise</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_oldpeak">ST Depression (Stress Level)</label>
+                                <input type="number" id="heart_oldpeak" name="oldpeak" min="0.0" max="7.0" step="0.1" value="0.8">
+                                <span class="hint">ECG stress level (normal: 0 to 1)</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_slope">Exercise ST Slope</label>
+                                <select id="heart_slope" name="slope">
+                                    <option value="0">0: Upsloping</option>
+                                    <option value="1">1: Flat</option>
+                                    <option value="2" selected>2: Downsloping</option>
+                                </select>
+                                <span class="hint">Slope during maximum exercise</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_ca">Blocked Blood Vessels (0 to 3)</label>
+                                <input type="number" id="heart_ca" name="ca" min="0" max="3" step="1" value="0">
+                                <span class="hint">Major vessels visible on fluoroscopy</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="heart_thal">Heart Blood Flow Test</label>
+                                <select id="heart_thal" name="thal">
+                                    <option value="0" selected>0: Normal Blood Flow</option>
+                                    <option value="1">1: Fixed Defect</option>
+                                    <option value="2">2: Reversible Defect</option>
+                                </select>
+                                <span class="hint">Blood circulation scan</span>
+                            </div>
+                        </div>
+
+                        <div class="form-btn-row">
+                            <button type="submit" class="btn btn-main" id="btnHeartPredict">Check Heart Risk</button>
+                            <button type="button" class="btn btn-sub" onclick="resetHeartForm()">Clear</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Right: Result -->
+                <div class="card result-box" id="heartResultCard">
+                    <div class="card-head">
+                        <h3>Prediction Result</h3>
+                        <span class="badge" id="heartBadge">Ready</span>
+                    </div>
+
+                    <div class="result-content" id="heartResultBody">
+                        <div class="placeholder-state">
+                            <div class="placeholder-icon">🫀</div>
+                            <h4>No Prediction Yet</h4>
+                            <p>Fill in the numbers on the left or click one of the <strong>Sample Profiles</strong> to check the risk.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: MODEL ACCURACY & STATS ================= -->
+        <section id="tab-metrics" class="tab-content">
+            <div class="stats-page">
+                <div class="stats-intro">
+                    <div>
+                        <h3>Model Performance & Testing Results</h3>
+                        <p>Evaluated using standard test datasets to ensure reliable predictions.</p>
+                    </div>
+                    <button class="btn btn-sub btn-sm" onclick="loadMetrics(true)">Refresh Numbers</button>
+                </div>
+
+                <div class="stats-grid">
+                    <!-- Diabetes Stats -->
+                    <div class="card stat-card">
+                        <div class="stat-header">
+                            <h4>🩸 Diabetes Prediction Model</h4>
+                            <span class="model-tag" id="diabModelName">Random Forest</span>
+                        </div>
+                        <div class="score-pills">
+                            <div class="score-pill">
+                                <span class="val" id="diabAcc">75.3%</span>
+                                <span class="lbl">Accuracy</span>
+                            </div>
+                            <div class="score-pill">
+                                <span class="val" id="diabAuc">80.9%</span>
+                                <span class="lbl">ROC-AUC</span>
+                            </div>
+                            <div class="score-pill">
+                                <span class="val" id="diabPrec">66.7%</span>
+                                <span class="lbl">Precision</span>
+                            </div>
+                            <div class="score-pill">
+                                <span class="val" id="diabF1">64.6%</span>
+                                <span class="lbl">F1-Score</span>
+                            </div>
+                        </div>
+
+                        <h5 class="sub-heading">Test Results (Confusion Matrix)</h5>
+                        <div id="diabCmTable"></div>
+
+                        <h5 class="sub-heading">Most Important Factors</h5>
+                        <div class="feat-bars" id="diabFeatList"></div>
+                    </div>
+
+                    <!-- Heart Stats -->
+                    <div class="card stat-card">
+                        <div class="stat-header">
+                            <h4>❤️ Heart Disease Prediction Model</h4>
+                            <span class="model-tag" id="heartModelName">Random Forest</span>
+                        </div>
+                        <div class="score-pills">
+                            <div class="score-pill">
+                                <span class="val" id="heartAcc">88.5%</span>
+                                <span class="lbl">Accuracy</span>
+                            </div>
+                            <div class="score-pill">
+                                <span class="val" id="heartAuc">95.0%</span>
+                                <span class="lbl">ROC-AUC</span>
+                            </div>
+                            <div class="score-pill">
+                                <span class="val" id="heartPrec">83.9%</span>
+                                <span class="lbl">Precision</span>
+                            </div>
+                            <div class="score-pill">
+                                <span class="val" id="heartF1">88.1%</span>
+                                <span class="lbl">F1-Score</span>
+                            </div>
+                        </div>
+
+                        <h5 class="sub-heading">Test Results (Confusion Matrix)</h5>
+                        <div id="heartCmTable"></div>
+
+                        <h5 class="sub-heading">Most Important Factors</h5>
+                        <div class="feat-bars" id="heartFeatList"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: HOW IT WORKS & VIVA GUIDE ================= -->
+        <section id="tab-guide" class="tab-content">
+            <div class="guide-wrapper">
+                <div class="guide-grid">
+                    
+                    <!-- Steps Card -->
+                    <div class="card guide-box">
+                        <h3>How the Model was Built (IBM watsonx.ai Workflow)</h3>
+                        <div class="steps-list">
+                            <div class="step-item">
+                                <span class="step-num">1</span>
+                                <div>
+                                    <strong>Dataset Collection:</strong>
+                                    <p>Used verified health datasets (Pima Indians for Diabetes, UCI Cleveland for Heart Disease).</p>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <span class="step-num">2</span>
+                                <div>
+                                    <strong>Data Cleaning:</strong>
+                                    <p>Handled missing values and replaced biologically impossible zeros (like zero blood sugar or zero blood pressure) with the median.</p>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <span class="step-num">3</span>
+                                <div>
+                                    <strong>AutoAI Training:</strong>
+                                    <p>Compared multiple algorithms (Random Forest, Gradient Boosting, Extra Trees, Logistic Regression) to pick the champion pipeline.</p>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <span class="step-num">4</span>
+                                <div>
+                                    <strong>Evaluation:</strong>
+                                    <p>Tested models on separate test data, achieving <strong>88.5% accuracy</strong> on Heart Disease and <strong>75.3%</strong> on Diabetes.</p>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <span class="step-num">5</span>
+                                <div>
+                                    <strong>Deployment:</strong>
+                                    <p>Integrated with Flask backend to provide instant predictions offline and support live IBM Cloud REST API.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Viva FAQ -->
+                    <div class="card guide-box">
+                        <h3>Common Viva Questions & Quick Answers</h3>
+                        <div class="faq-list">
+                            <details open>
+                                <summary><strong>Why use Random Forest for this project?</strong></summary>
+                                <p>Random Forest combines many decision trees together. It prevents overfitting, handles complex interactions between health factors (like sugar and BMI), and gave the highest accuracy in our tests.</p>
+                            </details>
+                            <details>
+                                <summary><strong>What does the ROC-AUC score mean?</strong></summary>
+                                <p>ROC-AUC measures how well the model separates healthy people from people at risk. A score of 95% for Heart Disease means the model is 95% likely to rank a person at risk higher than a healthy person.</p>
+                            </details>
+                            <details>
+                                <summary><strong>How does this connect to IBM watsonx.ai?</strong></summary>
+                                <p>The model architecture follows the IBM Watson AutoAI pipeline. It can run locally without needing internet, or connect directly to an IBM Watson Machine Learning scoring endpoint via API.</p>
+                            </details>
+                            <details>
+                                <summary><strong>Why is Recall important in medical models?</strong></summary>
+                                <p>Because we want to minimize False Negatives (missing a person who is actually sick). High recall ensures that at-risk patients get flagged for further medical checkups.</p>
+                            </details>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Settings Modal -->
+    <div class="modal-bg" id="apiModal">
+        <div class="modal-box">
+            <div class="modal-top">
+                <h4>IBM Cloud Settings</h4>
+                <button class="btn-close" onclick="closeApiModal()">&times;</button>
+            </div>
+            <div class="modal-inner">
+                <p class="modal-help">
+                    The project currently runs on the <strong>Local Pre-trained Model</strong> (fast, offline, 100% reliable for demos). If you want to connect live to your IBM Cloud account, select below:
+                </p>
+
+                <div class="field">
+                    <label>Inference Engine Mode:</label>
+                    <select id="engineSelect" onchange="toggleEngineMode()">
+                        <option value="local" selected>Local Pre-trained Model (Recommended)</option>
+                        <option value="watsonx">IBM Cloud watsonx.ai Online API</option>
+                    </select>
+                </div>
+
+                <div id="cloudFields" style="display: none;">
+                    <div class="field">
+                        <label>IBM Cloud API Key:</label>
+                        <input type="password" id="ibmApiKey" placeholder="Paste your IBM Cloud API Key">
+                    </div>
+                    <div class="field">
+                        <label>Watson Deployment ID:</label>
+                        <input type="text" id="wmlDeployId" placeholder="Paste Deployment ID">
+                    </div>
+                    <div class="field">
+                        <label>Watson Service URL:</label>
+                        <input type="text" id="wmlUrl" value="https://us-south.ml.cloud.ibm.com">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-bot">
+                <button class="btn btn-sub" onclick="closeApiModal()">Cancel</button>
+                <button class="btn btn-main" onclick="saveApiSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simple Student Footer -->
+    <footer class="footer">
+        <div class="footer-wrap">
+            <p><strong>HealthRisk AI</strong> &bull; 2nd Year Engineering Student Project &bull; IBM Applied AI</p>
+            <span class="tech-note">Python &bull; Flask &bull; Scikit-Learn &bull; IBM watsonx.ai</span>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+{
+    "watsonx_version": "IBM watsonx.ai Studio v2.1 Model Export",
+    "timestamp": "2026-11-05",
+    "diabetes": {
+        "model_name": "AutoAI-P2 (Random Forest + HPO)",
+        "accuracy": 75.32,
+        "precision": 69.05,
+        "recall": 53.7,
+        "f1_score": 60.42,
+        "auc_roc": 80.93,
+        "confusion_matrix": {
+            "tn": 87,
+            "fp": 13,
+            "fn": 25,
+            "tp": 29
+        },
+        "features": [
+            "Pregnancies",
+            "Glucose",
+            "BloodPressure",
+            "SkinThickness",
+            "Insulin",
+            "BMI",
+            "DiabetesPedigreeFunction",
+            "Age"
+        ],
+        "feature_importance": [
+            {
+                "feature": "Glucose",
+                "importance": 34.23
+            },
+            {
+                "feature": "BMI",
+                "importance": 17.44
+            },
+            {
+                "feature": "Age",
+                "importance": 11.37
+            },
+            {
+                "feature": "Insulin",
+                "importance": 9.92
+            },
+            {
+                "feature": "DiabetesPedigreeFunction",
+                "importance": 9.66
+            },
+            {
+                "feature": "Pregnancies",
+                "importance": 6.65
+            },
+            {
+                "feature": "SkinThickness",
+                "importance": 5.76
+            },
+            {
+                "feature": "BloodPressure",
+                "importance": 4.96
+            }
+        ],
+        "leaderboard": [
+            {
+                "pipeline": "AutoAI-P1 (Logistic Regression)",
+                "accuracy": 70.78,
+                "auc": 81.3
+            },
+            {
+                "pipeline": "AutoAI-P2 (Random Forest + HPO)",
+                "accuracy": 75.32,
+                "auc": 80.93
+            },
+            {
+                "pipeline": "AutoAI-P3 (Extra Trees)",
+                "accuracy": 73.38,
+                "auc": 81.56
+            },
+            {
+                "pipeline": "AutoAI-P4 (Gradient Boosting)",
+                "accuracy": 75.32,
+                "auc": 82.04
+            }
+        ]
+    },
+    "heart": {
+        "model_name": "AutoAI-P2 (Random Forest + HPO)",
+        "accuracy": 88.52,
+        "precision": 83.87,
+        "recall": 92.86,
+        "f1_score": 88.14,
+        "auc_roc": 95.02,
+        "confusion_matrix": {
+            "tn": 28,
+            "fp": 5,
+            "fn": 2,
+            "tp": 26
+        },
+        "features": [
+            "age",
+            "sex",
+            "cp",
+            "trestbps",
+            "chol",
+            "fbs",
+            "restecg",
+            "thalach",
+            "exang",
+            "oldpeak",
+            "slope",
+            "ca",
+            "thal"
+        ],
+        "feature_importance": [
+            {
+                "feature": "thal",
+                "importance": 17.9
+            },
+            {
+                "feature": "cp",
+                "importance": 14.7
+            },
+            {
+                "feature": "ca",
+                "importance": 11.57
+            },
+            {
+                "feature": "thalach",
+                "importance": 11.54
+            },
+            {
+                "feature": "oldpeak",
+                "importance": 9.26
+            },
+            {
+                "feature": "trestbps",
+                "importance": 6.44
+            },
+            {
+                "feature": "exang",
+                "importance": 6.14
+            },
+            {
+                "feature": "age",
+                "importance": 5.86
+            },
+            {
+                "feature": "chol",
+                "importance": 5.66
+            },
+            {
+                "feature": "slope",
+                "importance": 4.63
+            },
+            {
+                "feature": "sex",
+                "importance": 4.01
+            },
+            {
+                "feature": "restecg",
+                "importance": 1.56
+            },
+            {
+                "feature": "fbs",
+                "importance": 0.73
+            }
+        ],
+        "leaderboard": [
+            {
+                "pipeline": "AutoAI-P1 (Logistic Regression)",
+                "accuracy": 86.89,
+                "auc": 95.35
+            },
+            {
+                "pipeline": "AutoAI-P2 (Random Forest + HPO)",
+                "accuracy": 88.52,
+                "auc": 95.02
+            },
+            {
+                "pipeline": "AutoAI-P3 (Gradient Boosting)",
+                "accuracy": 83.61,
+                "auc": 94.91
+            },
+            {
+                "pipeline": "AutoAI-P4 (Extra Trees Classifier)",
+                "accuracy": 85.25,
+                "auc": 94.16
+            }
+        ]
+    }
+}
