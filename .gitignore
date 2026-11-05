@@ -8,7 +8,8 @@ env/
 venv/
 ENV/
 .vercel/
+_uv/
+uv.lock
+pyproject.toml
 .idea/
 .vscode/
-
-.vercel
