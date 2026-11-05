@@ -1,14 +1,11 @@
 /**
  * HealthRisk AI: Diabetes & Heart Disease Risk Predictor
  * Client-Side Controller (Vanilla JS - No NPM)
+ * Powered by IBM watsonx.ai Architecture
  */
 
 // Application State
 const appState = {
-    engine: localStorage.getItem('ibm_engine_mode') || 'local',
-    ibmApiKey: localStorage.getItem('ibm_api_key') || '',
-    wmlDeployId: localStorage.getItem('ibm_deploy_id') || '',
-    wmlUrl: localStorage.getItem('ibm_wml_url') || 'https://us-south.ml.cloud.ibm.com',
     presets: null,
     metrics: null
 };
@@ -16,10 +13,8 @@ const appState = {
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     initTabs();
-    initSettingsModal();
     loadPresets();
     loadMetrics();
-    updateEngineIndicator();
 });
 
 /* ================= TAB NAVIGATION ================= */
@@ -41,55 +36,6 @@ function initTabs() {
             }
         });
     });
-}
-
-/* ================= SETTINGS & MODAL ================= */
-function initSettingsModal() {
-    const modal = document.getElementById('apiModal');
-    const openBtn = document.getElementById('openSettingsBtn');
-
-    openBtn.addEventListener('click', () => {
-        document.getElementById('engineSelect').value = appState.engine;
-        document.getElementById('ibmApiKey').value = appState.ibmApiKey;
-        document.getElementById('wmlDeployId').value = appState.wmlDeployId;
-        document.getElementById('wmlUrl').value = appState.wmlUrl;
-        toggleEngineMode();
-        modal.classList.add('open');
-    });
-}
-
-function closeApiModal() {
-    document.getElementById('apiModal').classList.remove('open');
-}
-
-function toggleEngineMode() {
-    const mode = document.getElementById('engineSelect').value;
-    const cloudFields = document.getElementById('cloudFields');
-    cloudFields.style.display = mode === 'watsonx' ? 'block' : 'none';
-}
-
-function saveApiSettings() {
-    appState.engine = document.getElementById('engineSelect').value;
-    appState.ibmApiKey = document.getElementById('ibmApiKey').value.trim();
-    appState.wmlDeployId = document.getElementById('wmlDeployId').value.trim();
-    appState.wmlUrl = document.getElementById('wmlUrl').value.trim();
-
-    localStorage.setItem('ibm_engine_mode', appState.engine);
-    localStorage.setItem('ibm_api_key', appState.ibmApiKey);
-    localStorage.setItem('ibm_deploy_id', appState.wmlDeployId);
-    localStorage.setItem('ibm_wml_url', appState.wmlUrl);
-
-    updateEngineIndicator();
-    closeApiModal();
-}
-
-function updateEngineIndicator() {
-    const indicator = document.getElementById('activeEngineText');
-    if (appState.engine === 'watsonx' && appState.ibmApiKey) {
-        indicator.textContent = 'Cloud Model: Connected';
-    } else {
-        indicator.textContent = 'Model: Active (Offline)';
-    }
 }
 
 /* ================= PRESETS ================= */
@@ -173,10 +119,6 @@ async function handleDiabetesPredict(e) {
     btn.disabled = true;
 
     const payload = {
-        engine: appState.engine,
-        ibm_api_key: appState.ibmApiKey,
-        wml_deployment_id: appState.wmlDeployId,
-        wml_service_url: appState.wmlUrl,
         glucose: document.getElementById('diab_glucose').value,
         bmi: document.getElementById('diab_bmi').value,
         blood_pressure: document.getElementById('diab_bp').value,
@@ -215,10 +157,6 @@ async function handleHeartPredict(e) {
     btn.disabled = true;
 
     const payload = {
-        engine: appState.engine,
-        ibm_api_key: appState.ibmApiKey,
-        wml_deployment_id: appState.wmlDeployId,
-        wml_service_url: appState.wmlUrl,
         age: document.getElementById('heart_age').value,
         sex: document.getElementById('heart_sex').value,
         cp: document.getElementById('heart_cp').value,
@@ -407,7 +345,6 @@ function renderFeatureImportance(containerId, list) {
     const el = document.getElementById(containerId);
     if (!el || !list) return;
 
-    // Show top 5 features
     const topItems = list.slice(0, 5);
     el.innerHTML = topItems.map(item => `
         <div class="feat-row">

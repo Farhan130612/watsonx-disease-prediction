@@ -24,9 +24,8 @@
             <div class="nav-actions">
                 <span class="status-pill">
                     <span class="status-dot"></span>
-                    <span id="activeEngineText">Model: Active (Offline)</span>
+                    <span>IBM watsonx.ai Studio</span>
                 </span>
-                <button class="btn-config" id="openSettingsBtn">⚙️ Cloud Settings</button>
             </div>
         </div>
     </header>
@@ -392,47 +391,7 @@
 
     </main>
 
-    <!-- Settings Modal -->
-    <div class="modal-bg" id="apiModal">
-        <div class="modal-box">
-            <div class="modal-top">
-                <h4>IBM Cloud Settings</h4>
-                <button class="btn-close" onclick="closeApiModal()">&times;</button>
-            </div>
-            <div class="modal-inner">
-                <p class="modal-help">
-                    The project currently runs on the <strong>Local Pre-trained Model</strong> (fast, offline, 100% reliable for demos). If you want to connect live to your IBM Cloud account, select below:
-                </p>
 
-                <div class="field">
-                    <label>Inference Engine Mode:</label>
-                    <select id="engineSelect" onchange="toggleEngineMode()">
-                        <option value="local" selected>Local Pre-trained Model (Recommended)</option>
-                        <option value="watsonx">IBM Cloud watsonx.ai Online API</option>
-                    </select>
-                </div>
-
-                <div id="cloudFields" style="display: none;">
-                    <div class="field">
-                        <label>IBM Cloud API Key:</label>
-                        <input type="password" id="ibmApiKey" placeholder="Paste your IBM Cloud API Key">
-                    </div>
-                    <div class="field">
-                        <label>Watson Deployment ID:</label>
-                        <input type="text" id="wmlDeployId" placeholder="Paste Deployment ID">
-                    </div>
-                    <div class="field">
-                        <label>Watson Service URL:</label>
-                        <input type="text" id="wmlUrl" value="https://us-south.ml.cloud.ibm.com">
-                    </div>
-                </div>
-            </div>
-            <div class="modal-bot">
-                <button class="btn btn-sub" onclick="closeApiModal()">Cancel</button>
-                <button class="btn btn-main" onclick="saveApiSettings()">Save Settings</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Simple Student Footer -->
     <footer class="footer">

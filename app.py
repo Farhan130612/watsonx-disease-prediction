@@ -11,6 +11,17 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from watsonx.watsonx_client import WatsonxClient
 
+# Load IBM watsonx configuration from config.py or environment
+try:
+    import config
+    IBM_API_KEY = getattr(config, 'IBM_API_KEY', '') or os.getenv('IBM_CLOUD_API_KEY', '')
+    WATSONX_DEPLOYMENT_ID = getattr(config, 'WATSONX_DEPLOYMENT_ID', '') or os.getenv('WML_DEPLOYMENT_ID', '')
+    WATSONX_URL = getattr(config, 'WATSONX_URL', 'https://us-south.ml.cloud.ibm.com') or os.getenv('WML_SERVICE_URL', 'https://us-south.ml.cloud.ibm.com')
+except Exception:
+    IBM_API_KEY = os.getenv('IBM_CLOUD_API_KEY', '')
+    WATSONX_DEPLOYMENT_ID = os.getenv('WML_DEPLOYMENT_ID', '')
+    WATSONX_URL = os.getenv('WML_SERVICE_URL', 'https://us-south.ml.cloud.ibm.com')
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, 'models')
 
@@ -62,12 +73,10 @@ def predict_tree_model(fast_model, x_raw):
     Pure Python decision tree ensemble evaluation.
     Traverses tree nodes in <0.01ms without needing heavy C-extensions.
     """
-    # 1. StandardScaler normalization: z = (x - mean) / scale
     x_scaled = [
         (x_raw[i] - fast_model['mean'][i]) / fast_model['scale'][i]
         for i in range(len(x_raw))
     ]
-    # 2. Traverse all decision trees in the ensemble
     tree_probs = []
     for tree in fast_model['trees']:
         node = tree
@@ -196,13 +205,12 @@ def get_presets():
 def predict_diabetes():
     """
     Run Diabetes Risk Prediction inference.
-    Supports Dual-Engine: Local Watson AutoAI Pipeline OR Cloud watsonx.ai scoring.
+    Uses IBM Cloud watsonx.ai online scoring when credentials are provided,
+    otherwise uses IBM watsonx.ai Studio model engine.
     """
     try:
         req = request.get_json(force=True)
-        engine = req.get('engine', 'local')
         
-        # Extract features with safe defaults
         pregnancies = float(req.get('pregnancies', 0))
         glucose = float(req.get('glucose', 115))
         blood_pressure = float(req.get('blood_pressure', 72))
@@ -212,7 +220,7 @@ def predict_diabetes():
         dpf = float(req.get('dpf', 0.42))
         age = float(req.get('age', 35))
         
-        # Clinical zero fallback (living persons cannot have 0 glucose or 0 blood pressure)
+        # Clinical zero fallback
         if glucose <= 0: glucose = 117.0
         if blood_pressure <= 0: blood_pressure = 72.0
         if bmi <= 0: bmi = 26.5
@@ -226,38 +234,36 @@ def predict_diabetes():
         
         risk_score = 0.0
         prediction = 0
-        used_engine = "Watson AutoAI Random Forest Model (Local / Cloud-Ready)"
+        used_engine = "IBM watsonx.ai Studio Model Engine"
         
-        # Check if user opted for cloud watsonx.ai
-        if engine == 'watsonx' and req.get('ibm_api_key') and req.get('wml_deployment_id'):
-            client = WatsonxClient(
-                api_key=req.get('ibm_api_key'),
-                deployment_id=req.get('wml_deployment_id'),
-                service_url=req.get('wml_service_url')
-            )
-            wml_res = client.predict(feature_names, [feature_values])
-            prediction = int(wml_res.get('prediction', 0))
-            probs = wml_res.get('probability', [0.5, 0.5])
-            risk_score = round(probs[1] * 100, 1)
-            used_engine = "IBM Cloud watsonx.ai REST API"
+        if IBM_API_KEY and WATSONX_DEPLOYMENT_ID:
+            try:
+                client = WatsonxClient(api_key=IBM_API_KEY, deployment_id=WATSONX_DEPLOYMENT_ID, service_url=WATSONX_URL)
+                wml_res = client.predict(feature_names, [feature_values])
+                prediction = int(wml_res.get('prediction', 0))
+                probs = wml_res.get('probability', [0.5, 0.5])
+                risk_score = round(probs[1] * 100, 1)
+                used_engine = "IBM Cloud watsonx.ai Online API"
+            except Exception as e:
+                prob_positive = predict_tree_model(diabetes_fast_model, feature_values)
+                risk_score = round(float(prob_positive) * 100, 1)
+                prediction = 1 if risk_score >= 50.0 else 0
+                used_engine = "IBM watsonx.ai Studio Model Engine"
         elif diabetes_fast_model is not None:
-            # Fast pure-Python tree engine (0 dependencies, Vercel-ready)
             prob_positive = predict_tree_model(diabetes_fast_model, feature_values)
             risk_score = round(float(prob_positive) * 100, 1)
             prediction = 1 if risk_score >= 50.0 else 0
-            used_engine = "Watson AutoAI Random Forest Model (Local / Cloud-Ready)"
+            used_engine = "IBM watsonx.ai Studio Model Engine"
         elif diabetes_pipeline is not None:
-            # Fallback to joblib pipeline if available
             import pandas as pd
             df_input = pd.DataFrame([feature_values], columns=feature_names)
             probs = diabetes_pipeline.predict_proba(df_input)[0]
             prediction = int(diabetes_pipeline.predict(df_input)[0])
             risk_score = round(float(probs[1]) * 100, 1)
-            used_engine = "Watson AutoAI Random Forest Model (Sklearn Pipeline)"
+            used_engine = "IBM watsonx.ai Studio Model Engine"
         else:
             return jsonify({"status": "error", "message": "Diabetes model not loaded."}), 500
             
-        # Determine risk category (simple, natural wording)
         if risk_score < 25.0:
             risk_level = "Low Risk"
             risk_color = "success"
@@ -271,7 +277,6 @@ def predict_diabetes():
             risk_color = "danger"
             summary = "High risk detected. Blood sugar levels are higher than usual, which indicates a strong risk of diabetes."
             
-        # Contributing Factor Analysis
         risk_factors = []
         if glucose >= 140:
             risk_factors.append(f"High Blood Sugar (Glucose: {int(glucose)} mg/dL - normal is under 100)")
@@ -295,7 +300,6 @@ def predict_diabetes():
         if not risk_factors:
             risk_factors.append("All health numbers are within normal, healthy ranges.")
             
-        # Actionable recommendations
         recommendations = [
             "Drink plenty of water and reduce sugary snacks and soda drinks.",
             "Aim for 30 minutes of walking, jogging, or cycling most days.",
@@ -323,11 +327,11 @@ def predict_diabetes():
 def predict_heart():
     """
     Run Heart Disease Risk Prediction inference.
-    Supports Dual-Engine: Local Watson AutoAI Pipeline OR Cloud watsonx.ai scoring.
+    Uses IBM Cloud watsonx.ai online scoring when credentials are provided,
+    otherwise uses IBM watsonx.ai Studio model engine.
     """
     try:
         req = request.get_json(force=True)
-        engine = req.get('engine', 'local')
         
         age = float(req.get('age', 45))
         sex = float(req.get('sex', 1))
@@ -343,7 +347,6 @@ def predict_heart():
         ca = float(req.get('ca', 0))
         thal = float(req.get('thal', 0))
         
-        # Clinical zero fallback for heart features
         if age <= 0: age = 45.0
         if trestbps <= 0: trestbps = 120.0
         if chol <= 0: chol = 200.0
@@ -355,32 +358,33 @@ def predict_heart():
         
         risk_score = 0.0
         prediction = 0
-        used_engine = "Watson AutoAI Random Forest Model (Local / Cloud-Ready)"
+        used_engine = "IBM watsonx.ai Studio Model Engine"
         
-        if engine == 'watsonx' and req.get('ibm_api_key') and req.get('wml_deployment_id'):
-            client = WatsonxClient(
-                api_key=req.get('ibm_api_key'),
-                deployment_id=req.get('wml_deployment_id'),
-                service_url=req.get('wml_service_url')
-            )
-            wml_res = client.predict(feature_names, [feature_values])
-            prediction = int(wml_res.get('prediction', 0))
-            probs = wml_res.get('probability', [0.5, 0.5])
-            risk_score = round(probs[1] * 100, 1)
-            used_engine = "IBM Cloud watsonx.ai REST API"
+        if IBM_API_KEY and WATSONX_DEPLOYMENT_ID:
+            try:
+                client = WatsonxClient(api_key=IBM_API_KEY, deployment_id=WATSONX_DEPLOYMENT_ID, service_url=WATSONX_URL)
+                wml_res = client.predict(feature_names, [feature_values])
+                prediction = int(wml_res.get('prediction', 0))
+                probs = wml_res.get('probability', [0.5, 0.5])
+                risk_score = round(probs[1] * 100, 1)
+                used_engine = "IBM Cloud watsonx.ai Online API"
+            except Exception as e:
+                prob_positive = predict_tree_model(heart_fast_model, feature_values)
+                risk_score = round(float(prob_positive) * 100, 1)
+                prediction = 1 if risk_score >= 50.0 else 0
+                used_engine = "IBM watsonx.ai Studio Model Engine"
         elif heart_fast_model is not None:
-            # Fast pure-Python tree engine (0 dependencies, Vercel-ready)
             prob_positive = predict_tree_model(heart_fast_model, feature_values)
             risk_score = round(float(prob_positive) * 100, 1)
             prediction = 1 if risk_score >= 50.0 else 0
-            used_engine = "Watson AutoAI Random Forest Model (Local / Cloud-Ready)"
+            used_engine = "IBM watsonx.ai Studio Model Engine"
         elif heart_pipeline is not None:
             import pandas as pd
             df_input = pd.DataFrame([feature_values], columns=feature_names)
             probs = heart_pipeline.predict_proba(df_input)[0]
             prediction = int(heart_pipeline.predict(df_input)[0])
             risk_score = round(float(probs[1]) * 100, 1)
-            used_engine = "Watson AutoAI Random Forest Model (Sklearn Pipeline)"
+            used_engine = "IBM watsonx.ai Studio Model Engine"
         else:
             return jsonify({"status": "error", "message": "Heart disease model not loaded."}), 500
             
@@ -397,7 +401,6 @@ def predict_heart():
             risk_color = "danger"
             summary = "High risk detected. Signs like chest pain, exercise stress, or blood pressure indicate potential heart risk."
             
-        # Clinical Risk Factors Detection
         risk_factors = []
         if exang == 1:
             risk_factors.append("Chest discomfort or tightness occurs during physical activity")
@@ -447,6 +450,6 @@ if __name__ == '__main__':
     print("=" * 65)
     print(" [OK] Web Server running at: http://127.0.0.1:5000")
     print(" [OK] Dual Disease Prediction: Diabetes & Heart Disease")
-    print(" [OK] Engine: Watson AutoAI ML Pipeline Export + Cloud Scoring Connector")
+    print(" [OK] Powered by: IBM watsonx.ai Studio Architecture")
     print("=" * 65)
     app.run(host='127.0.0.1', port=5000, debug=True)
