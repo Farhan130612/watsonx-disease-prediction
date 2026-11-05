@@ -2,13 +2,11 @@
 CardioDiab-AI: Diabetes & Heart Disease Risk Prediction System
 Using IBM watsonx.ai Studio / Watson AutoAI Pipeline Architecture
 Second Year Engineering Project (IBM Applied AI)
+Production & Vercel Serverless Ready (Dual Engine: Fast Pure-Python Tree Engine + Sklearn Pipeline)
 """
 
 import os
 import json
-import joblib
-import numpy as np
-import pandas as pd
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from watsonx.watsonx_client import WatsonxClient
@@ -23,25 +21,64 @@ app = Flask(
 )
 CORS(app)
 
-# Load trained pipelines & metrics
-diabetes_model_path = os.path.join(MODELS_DIR, 'diabetes_model.joblib')
-heart_model_path = os.path.join(MODELS_DIR, 'heart_model.joblib')
+# Load fast pure-Python tree models (Ultra-lightweight, 0 heavy C-extension dependency, Vercel-ready)
+diab_fast_path = os.path.join(MODELS_DIR, 'diabetes_fast.json')
+heart_fast_path = os.path.join(MODELS_DIR, 'heart_fast.json')
 metrics_path = os.path.join(MODELS_DIR, 'metrics.json')
 
-diabetes_pipeline = None
-heart_pipeline = None
+diabetes_fast_model = None
+heart_fast_model = None
 model_metrics = {}
 
 try:
-    if os.path.exists(diabetes_model_path):
-        diabetes_pipeline = joblib.load(diabetes_model_path)
-    if os.path.exists(heart_model_path):
-        heart_pipeline = joblib.load(heart_model_path)
+    if os.path.exists(diab_fast_path):
+        with open(diab_fast_path, 'r', encoding='utf-8') as f:
+            diabetes_fast_model = json.load(f)
+    if os.path.exists(heart_fast_path):
+        with open(heart_fast_path, 'r', encoding='utf-8') as f:
+            heart_fast_model = json.load(f)
     if os.path.exists(metrics_path):
         with open(metrics_path, 'r', encoding='utf-8') as f:
             model_metrics = json.load(f)
 except Exception as e:
-    print(f"[!] Warning during model load: {e}")
+    print(f"[!] Warning loading fast models: {e}")
+
+# Optional fallback: load joblib pipelines if available
+diabetes_pipeline = None
+heart_pipeline = None
+try:
+    import joblib
+    diabetes_model_path = os.path.join(MODELS_DIR, 'diabetes_model.joblib')
+    heart_model_path = os.path.join(MODELS_DIR, 'heart_model.joblib')
+    if os.path.exists(diabetes_model_path):
+        diabetes_pipeline = joblib.load(diabetes_model_path)
+    if os.path.exists(heart_model_path):
+        heart_pipeline = joblib.load(heart_model_path)
+except Exception:
+    pass
+
+def predict_tree_model(fast_model, x_raw):
+    """
+    Pure Python decision tree ensemble evaluation.
+    Traverses tree nodes in <0.01ms without needing heavy C-extensions.
+    """
+    # 1. StandardScaler normalization: z = (x - mean) / scale
+    x_scaled = [
+        (x_raw[i] - fast_model['mean'][i]) / fast_model['scale'][i]
+        for i in range(len(x_raw))
+    ]
+    # 2. Traverse all decision trees in the ensemble
+    tree_probs = []
+    for tree in fast_model['trees']:
+        node = tree
+        while 'val' not in node:
+            if x_scaled[node['feat']] <= node['thresh']:
+                node = node['l']
+            else:
+                node = node['r']
+        tree_probs.append(node['val'])
+        
+    return sum(tree_probs) / len(tree_probs)
 
 # Preset Patient Profiles for Instant Demo Presentation
 PRESET_PROFILES = {
@@ -163,7 +200,7 @@ def predict_diabetes():
         req = request.get_json(force=True)
         engine = req.get('engine', 'local')
         
-        # Extract features with safe medical defaults
+        # Extract features with safe defaults
         pregnancies = float(req.get('pregnancies', 0))
         glucose = float(req.get('glucose', 115))
         blood_pressure = float(req.get('blood_pressure', 72))
@@ -183,12 +220,11 @@ def predict_diabetes():
         
         feature_names = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 
                          'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
-        feature_values = [[pregnancies, glucose, blood_pressure, skin_thickness, insulin, bmi, dpf, age]]
-        df_input = pd.DataFrame(feature_values, columns=feature_names)
+        feature_values = [pregnancies, glucose, blood_pressure, skin_thickness, insulin, bmi, dpf, age]
         
         risk_score = 0.0
         prediction = 0
-        used_engine = "Local Watson AutoAI Model (Offline)"
+        used_engine = "Watson AutoAI Random Forest Model (Local / Cloud-Ready)"
         
         # Check if user opted for cloud watsonx.ai
         if engine == 'watsonx' and req.get('ibm_api_key') and req.get('wml_deployment_id'):
@@ -197,19 +233,27 @@ def predict_diabetes():
                 deployment_id=req.get('wml_deployment_id'),
                 service_url=req.get('wml_service_url')
             )
-            wml_res = client.predict(feature_names, feature_values)
+            wml_res = client.predict(feature_names, [feature_values])
             prediction = int(wml_res.get('prediction', 0))
             probs = wml_res.get('probability', [0.5, 0.5])
             risk_score = round(probs[1] * 100, 1)
             used_engine = "IBM Cloud watsonx.ai REST API"
-        else:
-            if diabetes_pipeline is None:
-                return jsonify({"status": "error", "message": "Diabetes model not loaded."}), 500
-            
+        elif diabetes_fast_model is not None:
+            # Fast pure-Python tree engine (0 dependencies, Vercel-ready)
+            prob_positive = predict_tree_model(diabetes_fast_model, feature_values)
+            risk_score = round(float(prob_positive) * 100, 1)
+            prediction = 1 if risk_score >= 50.0 else 0
+            used_engine = "Watson AutoAI Random Forest Model (Local / Cloud-Ready)"
+        elif diabetes_pipeline is not None:
+            # Fallback to joblib pipeline if available
+            import pandas as pd
+            df_input = pd.DataFrame([feature_values], columns=feature_names)
             probs = diabetes_pipeline.predict_proba(df_input)[0]
             prediction = int(diabetes_pipeline.predict(df_input)[0])
             risk_score = round(float(probs[1]) * 100, 1)
-            used_engine = "Watson AutoAI Random Forest Model (Local)"
+            used_engine = "Watson AutoAI Random Forest Model (Sklearn Pipeline)"
+        else:
+            return jsonify({"status": "error", "message": "Diabetes model not loaded."}), 500
             
         # Determine risk category (simple, natural wording)
         if risk_score < 25.0:
@@ -225,7 +269,7 @@ def predict_diabetes():
             risk_color = "danger"
             summary = "High risk detected. Blood sugar levels are higher than usual, which indicates a strong risk of diabetes."
             
-        # Contributing Factor Analysis (plain, clear language)
+        # Contributing Factor Analysis
         risk_factors = []
         if glucose >= 140:
             risk_factors.append(f"High Blood Sugar (Glucose: {int(glucose)} mg/dL - normal is under 100)")
@@ -260,7 +304,7 @@ def predict_diabetes():
         return jsonify({
             "status": "success",
             "prediction": prediction,
-            "prediction_label": "Diabetic Risk Positive" if prediction == 1 else "Non-Diabetic",
+            "prediction_label": "High Risk" if prediction == 1 else "Low Risk",
             "risk_score": risk_score,
             "risk_level": risk_level,
             "risk_color": risk_color,
@@ -305,12 +349,11 @@ def predict_heart():
         
         feature_names = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 
                          'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
-        feature_values = [[age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal]]
-        df_input = pd.DataFrame(feature_values, columns=feature_names)
+        feature_values = [age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal]
         
         risk_score = 0.0
         prediction = 0
-        used_engine = "Local Watson AutoAI Model (Offline)"
+        used_engine = "Watson AutoAI Random Forest Model (Local / Cloud-Ready)"
         
         if engine == 'watsonx' and req.get('ibm_api_key') and req.get('wml_deployment_id'):
             client = WatsonxClient(
@@ -318,19 +361,26 @@ def predict_heart():
                 deployment_id=req.get('wml_deployment_id'),
                 service_url=req.get('wml_service_url')
             )
-            wml_res = client.predict(feature_names, feature_values)
+            wml_res = client.predict(feature_names, [feature_values])
             prediction = int(wml_res.get('prediction', 0))
             probs = wml_res.get('probability', [0.5, 0.5])
             risk_score = round(probs[1] * 100, 1)
             used_engine = "IBM Cloud watsonx.ai REST API"
-        else:
-            if heart_pipeline is None:
-                return jsonify({"status": "error", "message": "Heart disease model not loaded."}), 500
-            
+        elif heart_fast_model is not None:
+            # Fast pure-Python tree engine (0 dependencies, Vercel-ready)
+            prob_positive = predict_tree_model(heart_fast_model, feature_values)
+            risk_score = round(float(prob_positive) * 100, 1)
+            prediction = 1 if risk_score >= 50.0 else 0
+            used_engine = "Watson AutoAI Random Forest Model (Local / Cloud-Ready)"
+        elif heart_pipeline is not None:
+            import pandas as pd
+            df_input = pd.DataFrame([feature_values], columns=feature_names)
             probs = heart_pipeline.predict_proba(df_input)[0]
             prediction = int(heart_pipeline.predict(df_input)[0])
             risk_score = round(float(probs[1]) * 100, 1)
-            used_engine = "Watson AutoAI Random Forest Model (Local)"
+            used_engine = "Watson AutoAI Random Forest Model (Sklearn Pipeline)"
+        else:
+            return jsonify({"status": "error", "message": "Heart disease model not loaded."}), 500
             
         if risk_score < 30.0:
             risk_level = "Low Risk"
@@ -345,7 +395,7 @@ def predict_heart():
             risk_color = "danger"
             summary = "High risk detected. Signs like chest pain, exercise stress, or blood pressure indicate potential heart risk."
             
-        # Clinical Risk Factors Detection (simplified)
+        # Clinical Risk Factors Detection
         risk_factors = []
         if exang == 1:
             risk_factors.append("Chest discomfort or tightness occurs during physical activity")
@@ -375,7 +425,7 @@ def predict_heart():
         return jsonify({
             "status": "success",
             "prediction": prediction,
-            "prediction_label": "Heart Disease Positive" if prediction == 1 else "Normal Cardiac Function",
+            "prediction_label": "High Risk" if prediction == 1 else "Low Risk",
             "risk_score": risk_score,
             "risk_level": risk_level,
             "risk_color": risk_color,

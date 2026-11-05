@@ -10,3 +10,5 @@ ENV/
 .vercel/
 .idea/
 .vscode/
+
+.vercel
