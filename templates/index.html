@@ -51,9 +51,6 @@
             <button class="tab-btn" data-tab="tab-metrics">
                 <span>📊</span> Model Accuracy & Stats
             </button>
-            <button class="tab-btn" data-tab="tab-guide">
-                <span>💡</span> Project & Viva Guide
-            </button>
         </nav>
     </div>
 
@@ -391,79 +388,7 @@
             </div>
         </section>
 
-        <!-- ================= TAB 4: HOW IT WORKS & VIVA GUIDE ================= -->
-        <section id="tab-guide" class="tab-content">
-            <div class="guide-wrapper">
-                <div class="guide-grid">
-                    
-                    <!-- Steps Card -->
-                    <div class="card guide-box">
-                        <h3>How the Model was Built (IBM watsonx.ai Workflow)</h3>
-                        <div class="steps-list">
-                            <div class="step-item">
-                                <span class="step-num">1</span>
-                                <div>
-                                    <strong>Dataset Collection:</strong>
-                                    <p>Used verified health datasets (Pima Indians for Diabetes, UCI Cleveland for Heart Disease).</p>
-                                </div>
-                            </div>
-                            <div class="step-item">
-                                <span class="step-num">2</span>
-                                <div>
-                                    <strong>Data Cleaning:</strong>
-                                    <p>Handled missing values and replaced biologically impossible zeros (like zero blood sugar or zero blood pressure) with the median.</p>
-                                </div>
-                            </div>
-                            <div class="step-item">
-                                <span class="step-num">3</span>
-                                <div>
-                                    <strong>AutoAI Training:</strong>
-                                    <p>Compared multiple algorithms (Random Forest, Gradient Boosting, Extra Trees, Logistic Regression) to pick the champion pipeline.</p>
-                                </div>
-                            </div>
-                            <div class="step-item">
-                                <span class="step-num">4</span>
-                                <div>
-                                    <strong>Evaluation:</strong>
-                                    <p>Tested models on separate test data, achieving <strong>88.5% accuracy</strong> on Heart Disease and <strong>75.3%</strong> on Diabetes.</p>
-                                </div>
-                            </div>
-                            <div class="step-item">
-                                <span class="step-num">5</span>
-                                <div>
-                                    <strong>Deployment:</strong>
-                                    <p>Integrated with Flask backend to provide instant predictions offline and support live IBM Cloud REST API.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Viva FAQ -->
-                    <div class="card guide-box">
-                        <h3>Common Viva Questions & Quick Answers</h3>
-                        <div class="faq-list">
-                            <details open>
-                                <summary><strong>Why use Random Forest for this project?</strong></summary>
-                                <p>Random Forest combines many decision trees together. It prevents overfitting, handles complex interactions between health factors (like sugar and BMI), and gave the highest accuracy in our tests.</p>
-                            </details>
-                            <details>
-                                <summary><strong>What does the ROC-AUC score mean?</strong></summary>
-                                <p>ROC-AUC measures how well the model separates healthy people from people at risk. A score of 95% for Heart Disease means the model is 95% likely to rank a person at risk higher than a healthy person.</p>
-                            </details>
-                            <details>
-                                <summary><strong>How does this connect to IBM watsonx.ai?</strong></summary>
-                                <p>The model architecture follows the IBM Watson AutoAI pipeline. It can run locally without needing internet, or connect directly to an IBM Watson Machine Learning scoring endpoint via API.</p>
-                            </details>
-                            <details>
-                                <summary><strong>Why is Recall important in medical models?</strong></summary>
-                                <p>Because we want to minimize False Negatives (missing a person who is actually sick). High recall ensures that at-risk patients get flagged for further medical checkups.</p>
-                            </details>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </section>
 
     </main>
 
