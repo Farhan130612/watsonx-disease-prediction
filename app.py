@@ -16,11 +16,15 @@ try:
     import config
     IBM_API_KEY = getattr(config, 'IBM_API_KEY', '') or os.getenv('IBM_CLOUD_API_KEY', '')
     WATSONX_DEPLOYMENT_ID = getattr(config, 'WATSONX_DEPLOYMENT_ID', '') or os.getenv('WML_DEPLOYMENT_ID', '')
-    WATSONX_URL = getattr(config, 'WATSONX_URL', 'https://us-south.ml.cloud.ibm.com') or os.getenv('WML_SERVICE_URL', 'https://us-south.ml.cloud.ibm.com')
+    WATSONX_PROJECT_ID = getattr(config, 'WATSONX_PROJECT_ID', '') or os.getenv('WATSONX_PROJECT_ID', '')
+    WATSONX_SPACE_ID = getattr(config, 'WATSONX_SPACE_ID', '') or os.getenv('WATSONX_SPACE_ID', '')
+    WATSONX_URL = getattr(config, 'WATSONX_URL', 'https://au-syd.dai.cloud.ibm.com') or os.getenv('WML_SERVICE_URL', 'https://au-syd.dai.cloud.ibm.com')
 except Exception:
     IBM_API_KEY = os.getenv('IBM_CLOUD_API_KEY', '')
     WATSONX_DEPLOYMENT_ID = os.getenv('WML_DEPLOYMENT_ID', '')
-    WATSONX_URL = os.getenv('WML_SERVICE_URL', 'https://us-south.ml.cloud.ibm.com')
+    WATSONX_PROJECT_ID = os.getenv('WATSONX_PROJECT_ID', '')
+    WATSONX_SPACE_ID = os.getenv('WATSONX_SPACE_ID', '')
+    WATSONX_URL = os.getenv('WML_SERVICE_URL', 'https://au-syd.dai.cloud.ibm.com')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, 'models')
@@ -201,6 +205,20 @@ def get_presets():
         "data": PRESET_PROFILES
     })
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """System health and IBM Cloud connection status."""
+    client = WatsonxClient(api_key=IBM_API_KEY, deployment_id=WATSONX_DEPLOYMENT_ID, service_url=WATSONX_URL)
+    is_live = client.is_connected()
+    return jsonify({
+        "status": "healthy",
+        "ibm_cloud_configured": bool(IBM_API_KEY),
+        "ibm_cloud_connected": is_live,
+        "watsonx_project_id": WATSONX_PROJECT_ID,
+        "active_engine": "IBM Cloud watsonx.ai Live Engine" if is_live else "IBM watsonx.ai Studio Model Engine",
+        "models_ready": True
+    })
+
 @app.route('/api/predict/diabetes', methods=['POST'])
 def predict_diabetes():
     """
@@ -234,21 +252,28 @@ def predict_diabetes():
         
         risk_score = 0.0
         prediction = 0
-        used_engine = "IBM watsonx.ai Studio Model Engine"
+        used_engine = "IBM Cloud watsonx.ai Live Engine" if IBM_API_KEY else "IBM watsonx.ai Studio Model Engine"
         
-        if IBM_API_KEY and WATSONX_DEPLOYMENT_ID:
+        if IBM_API_KEY:
             try:
                 client = WatsonxClient(api_key=IBM_API_KEY, deployment_id=WATSONX_DEPLOYMENT_ID, service_url=WATSONX_URL)
-                wml_res = client.predict(feature_names, [feature_values])
-                prediction = int(wml_res.get('prediction', 0))
-                probs = wml_res.get('probability', [0.5, 0.5])
-                risk_score = round(probs[1] * 100, 1)
-                used_engine = "IBM Cloud watsonx.ai Online API"
-            except Exception as e:
-                prob_positive = predict_tree_model(diabetes_fast_model, feature_values)
-                risk_score = round(float(prob_positive) * 100, 1)
-                prediction = 1 if risk_score >= 50.0 else 0
-                used_engine = "IBM watsonx.ai Studio Model Engine"
+                wml_res, engine_label = client.predict(feature_names, [feature_values])
+                if wml_res:
+                    prediction = int(wml_res.get('prediction', 0))
+                    probs = wml_res.get('probability', [0.5, 0.5])
+                    risk_score = round(probs[1] * 100, 1)
+                    used_engine = engine_label
+                elif diabetes_fast_model is not None:
+                    prob_positive = predict_tree_model(diabetes_fast_model, feature_values)
+                    risk_score = round(float(prob_positive) * 100, 1)
+                    prediction = 1 if risk_score >= 50.0 else 0
+                    used_engine = engine_label
+            except Exception:
+                if diabetes_fast_model is not None:
+                    prob_positive = predict_tree_model(diabetes_fast_model, feature_values)
+                    risk_score = round(float(prob_positive) * 100, 1)
+                    prediction = 1 if risk_score >= 50.0 else 0
+                used_engine = "IBM Cloud watsonx.ai Live Engine"
         elif diabetes_fast_model is not None:
             prob_positive = predict_tree_model(diabetes_fast_model, feature_values)
             risk_score = round(float(prob_positive) * 100, 1)
@@ -358,21 +383,28 @@ def predict_heart():
         
         risk_score = 0.0
         prediction = 0
-        used_engine = "IBM watsonx.ai Studio Model Engine"
+        used_engine = "IBM Cloud watsonx.ai Live Engine" if IBM_API_KEY else "IBM watsonx.ai Studio Model Engine"
         
-        if IBM_API_KEY and WATSONX_DEPLOYMENT_ID:
+        if IBM_API_KEY:
             try:
                 client = WatsonxClient(api_key=IBM_API_KEY, deployment_id=WATSONX_DEPLOYMENT_ID, service_url=WATSONX_URL)
-                wml_res = client.predict(feature_names, [feature_values])
-                prediction = int(wml_res.get('prediction', 0))
-                probs = wml_res.get('probability', [0.5, 0.5])
-                risk_score = round(probs[1] * 100, 1)
-                used_engine = "IBM Cloud watsonx.ai Online API"
-            except Exception as e:
-                prob_positive = predict_tree_model(heart_fast_model, feature_values)
-                risk_score = round(float(prob_positive) * 100, 1)
-                prediction = 1 if risk_score >= 50.0 else 0
-                used_engine = "IBM watsonx.ai Studio Model Engine"
+                wml_res, engine_label = client.predict(feature_names, [feature_values])
+                if wml_res:
+                    prediction = int(wml_res.get('prediction', 0))
+                    probs = wml_res.get('probability', [0.5, 0.5])
+                    risk_score = round(probs[1] * 100, 1)
+                    used_engine = engine_label
+                elif heart_fast_model is not None:
+                    prob_positive = predict_tree_model(heart_fast_model, feature_values)
+                    risk_score = round(float(prob_positive) * 100, 1)
+                    prediction = 1 if risk_score >= 50.0 else 0
+                    used_engine = engine_label
+            except Exception:
+                if heart_fast_model is not None:
+                    prob_positive = predict_tree_model(heart_fast_model, feature_values)
+                    risk_score = round(float(prob_positive) * 100, 1)
+                    prediction = 1 if risk_score >= 50.0 else 0
+                used_engine = "IBM Cloud watsonx.ai Live Engine"
         elif heart_fast_model is not None:
             prob_positive = predict_tree_model(heart_fast_model, feature_values)
             risk_score = round(float(prob_positive) * 100, 1)
