@@ -170,6 +170,8 @@ PRESET_PROFILES = {
 }
 
 @app.route('/')
+@app.route('/api/index')
+@app.route('/api/index.py')
 def home():
     """Render main web application interface."""
     return render_template('index.html')
